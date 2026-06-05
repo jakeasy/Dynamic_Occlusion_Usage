@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dynamic Occlusion 사용 빈도 분석</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f7fa; color: #1a1a2e; }
+
+  .header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    padding: 32px 40px;
+    color: white;
+  }
+  .header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.3px; }
+  .header p { font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 4px; }
+
+  .kpi-row {
+    display: flex;
+    gap: 16px;
+    padding: 24px 40px;
+    align-items: stretch;
+  }
+  .kpi-total {
+    background: white;
+    border-radius: 12px;
+    padding: 24px 32px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    border-left: 4px solid #4361ee;
+    min-width: 220px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .kpi-group {
+    flex: 1;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    overflow: hidden;
+  }
+  .kpi-group-header {
+    padding: 10px 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: white;
+  }
+  .kpi-group.do .kpi-group-header { background: #4361ee; }
+  .kpi-group.cad .kpi-group-header { background: #f59e0b; }
+  .kpi-group-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .kpi-card {
+    padding: 16px 20px;
+    border-right: 1px solid #f0f0f0;
+  }
+  .kpi-card:last-child { border-right: none; }
+  .kpi-label { font-size: 11px; color: #888; font-weight: 500; }
+  .kpi-value { font-size: 24px; font-weight: 700; margin-top: 4px; color: #1a1a2e; }
+  .kpi-sub { font-size: 11px; color: #bbb; margin-top: 2px; }
+
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    padding: 0 40px 24px;
+  }
+  .chart-card {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  .chart-card.full { grid-column: 1 / -1; }
+  .chart-title { font-size: 14px; font-weight: 600; color: #1a1a2e; margin-bottom: 4px; }
+  .chart-sub { font-size: 12px; color: #999; margin-bottom: 16px; }
+  .chart-wrap { position: relative; height: 260px; }
+
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+  .tab {
+    padding: 5px 14px; border-radius: 6px; font-size: 12px; font-weight: 500;
+    cursor: pointer; border: 1px solid #e2e2e2; background: white; color: #666;
+    transition: all 0.15s;
+  }
+  .tab.active { background: #4361ee; color: white; border-color: #4361ee; }
+
+  .table-section { padding: 0 40px 40px; }
+  .table-card {
+    background: white; border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden;
+  }
+  .table-header { padding: 20px 24px; border-bottom: 1px solid #f0f0f0; }
+  .table-header h3 { font-size: 14px; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #fafafa; padding: 10px 16px; text-align: right; font-weight: 600; color: #555; font-size: 12px; border-bottom: 1px solid #eee; }
+  th:first-child { text-align: left; }
+  td { padding: 9px 16px; text-align: right; border-bottom: 1px solid #f5f5f5; color: #333; }
+  td:first-child { text-align: left; font-weight: 500; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafbff; }
+  .rate-pill {
+    display: inline-block; padding: 2px 8px; border-radius: 100px; font-size: 11px; font-weight: 600;
+  }
+  .rate-low { background: #fef9ee; color: #d97706; }
+  .rate-mid { background: #eff6ff; color: #2563eb; }
+  .rate-high { background: #f0fdf4; color: #16a34a; }
+
+  .note { font-size: 11px; color: #bbb; padding: 12px 24px 16px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Dynamic Occlusion 사용 빈도 분석</h1>
+  <p>Medit Link · Scan for Clinics · 2025.06 – 2026.05</p>
+</div>
+
+<div class="kpi-row">
+  <div class="kpi-total">
+    <div class="kpi-label">전체 케이스</div>
+    <div class="kpi-value" style="font-size:22px">28,535,703</div>
+    <div class="kpi-sub">2025.06 ~ 2026.05</div>
+  </div>
+
+  <div class="kpi-group do">
+    <div class="kpi-group-header">Dynamic Occlusion</div>
+    <div class="kpi-group-cards">
+      <div class="kpi-card">
+        <div class="kpi-label">결과 케이스</div>
+        <div class="kpi-value">49,001</div>
+        <div class="kpi-sub">누적 건수</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">사용률</div>
+        <div class="kpi-value">0.17%</div>
+        <div class="kpi-sub">결과 케이스 / 전체 케이스</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="kpi-group cad">
+    <div class="kpi-group-header">ClinicCAD</div>
+    <div class="kpi-group-cards">
+      <div class="kpi-card">
+        <div class="kpi-label">활용 케이스</div>
+        <div class="kpi-value">1,047</div>
+        <div class="kpi-sub">누적 건수</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">활용률</div>
+        <div class="kpi-value">0.0037%</div>
+        <div class="kpi-sub">활용 케이스 / 전체 케이스</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="charts-grid">
+  <!-- Monthly DO Rate -->
+  <div class="chart-card">
+    <div class="chart-title">월별 Dynamic Occlusion 사용률</div>
+    <div class="chart-sub">Dynamic Occlusion 결과 케이스 / 전체 케이스 (%)</div>
+    <div class="chart-wrap">
+      <canvas id="monthlyDoRate"></canvas>
+    </div>
+  </div>
+
+  <!-- Monthly CAD Rate -->
+  <div class="chart-card">
+    <div class="chart-title">월별 ClinicCAD 활용률</div>
+    <div class="chart-sub">ClinicCAD 활용 케이스 / 전체 케이스 (%)</div>
+    <div class="chart-wrap">
+      <canvas id="monthlyCadRate"></canvas>
+    </div>
+  </div>
+
+  <!-- Daily trend -->
+  <div class="chart-card full">
+    <div class="chart-title">일별 추이</div>
+    <div class="chart-sub">Dynamic Occlusion 사용률 및 ClinicCAD 활용률 일별 변동 (평일 기준)</div>
+    <div class="tabs">
+      <button class="tab active" onclick="switchDailyChart('do', this)">Dynamic Occlusion 사용률</button>
+      <button class="tab" onclick="switchDailyChart('cad', this)">ClinicCAD 활용률</button>
+    </div>
+    <div class="chart-wrap" style="height:260px">
+      <canvas id="dailyChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="table-section">
+  <div class="table-card">
+    <div class="table-header"><h3>월별 상세 집계</h3></div>
+    <table>
+      <thead>
+        <tr>
+          <th>월</th>
+          <th>전체 케이스</th>
+          <th>Dynamic Occlusion 케이스</th>
+          <th>Dynamic Occlusion 사용률</th>
+          <th>ClinicCAD 케이스</th>
+          <th>ClinicCAD 활용률 (전체 기준)</th>
+        </tr>
+      </thead>
+      <tbody id="monthlyTable"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const monthlyData = [
+  { month: '2025.06', cases: 2160096, do: 3883, cad: 91 },
+  { month: '2025.07', cases: 2307768, do: 3913, cad: 66 },
+  { month: '2025.08', cases: 1903243, do: 3061, cad: 71 },
+  { month: '2025.09', cases: 2433021, do: 4302, cad: 84 },
+  { month: '2025.10', cases: 2417013, do: 4297, cad: 90 },
+  { month: '2025.11', cases: 2335766, do: 4431, cad: 122 },
+  { month: '2025.12', cases: 2176066, do: 3577, cad: 63 },
+  { month: '2026.01', cases: 2416495, do: 4239, cad: 103 },
+  { month: '2026.02', cases: 2409094, do: 4112, cad: 100 },
+  { month: '2026.03', cases: 2733847, do: 4753, cad: 120 },
+  { month: '2026.04', cases: 2703907, do: 4231, cad: 65 },
+  { month: '2026.05', cases: 2539387, do: 4202, cad: 72 },
+];
+
+const dailyData = [
+  {d:'6/1',c:12672,m:24,cad:0},{d:'6/2',c:102846,m:156,cad:10},{d:'6/3',c:107986,m:198,cad:3},{d:'6/4',c:100347,m:184,cad:7},{d:'6/5',c:94738,m:190,cad:1},{d:'6/6',c:64349,m:113,cad:7},{d:'6/9',c:77899,m:136,cad:3},{d:'6/10',c:115179,m:225,cad:5},{d:'6/11',c:100492,m:206,cad:5},{d:'6/12',c:101884,m:190,cad:4},{d:'6/13',c:74645,m:125,cad:3},{d:'6/16',c:108438,m:223,cad:3},{d:'6/17',c:109455,m:225,cad:5},{d:'6/18',c:98934,m:183,cad:4},{d:'6/19',c:89545,m:123,cad:2},{d:'6/20',c:67781,m:117,cad:3},{d:'6/23',c:102478,m:221,cad:4},{d:'6/24',c:110186,m:168,cad:3},{d:'6/25',c:95442,m:164,cad:3},{d:'6/26',c:99669,m:170,cad:1},{d:'6/27',c:72116,m:97,cad:1},{d:'6/30',c:103917,m:192,cad:8},{d:'7/1',c:108563,m:189,cad:2},{d:'7/2',c:97875,m:168,cad:1},{d:'7/3',c:92676,m:184,cad:5},{d:'7/4',c:65471,m:117,cad:3},{d:'7/7',c:104636,m:171,cad:4},{d:'7/8',c:110211,m:215,cad:3},{d:'7/9',c:97140,m:161,cad:3},{d:'7/10',c:105762,m:185,cad:5},{d:'7/11',c:73255,m:115,cad:1},{d:'7/14',c:90714,m:132,cad:1},{d:'7/15',c:115387,m:203,cad:5},{d:'7/16',c:101191,m:163,cad:2},{d:'7/17',c:93863,m:169,cad:0},{d:'7/18',c:72807,m:151,cad:2},{d:'7/21',c:92939,m:164,cad:2},{d:'7/22',c:103286,m:166,cad:2},{d:'7/23',c:93350,m:144,cad:3},{d:'7/24',c:90118,m:142,cad:1},{d:'7/25',c:66844,m:125,cad:0},{d:'7/28',c:94869,m:139,cad:3},{d:'7/29',c:95642,m:201,cad:5},{d:'7/30',c:84589,m:130,cad:2},{d:'7/31',c:82804,m:110,cad:4},{d:'8/1',c:63020,m:141,cad:3},{d:'8/4',c:90106,m:132,cad:6},{d:'8/5',c:93835,m:130,cad:1},{d:'8/6',c:95367,m:142,cad:5},{d:'8/7',c:82918,m:116,cad:1},{d:'8/8',c:56602,m:111,cad:1},{d:'8/11',c:78913,m:146,cad:0},{d:'8/12',c:88475,m:120,cad:2},{d:'8/13',c:88303,m:127,cad:3},{d:'8/14',c:74633,m:110,cad:0},{d:'8/18',c:88706,m:111,cad:2},{d:'8/19',c:93394,m:140,cad:4},{d:'8/20',c:89964,m:141,cad:5},{d:'8/21',c:82132,m:148,cad:5},{d:'8/22',c:62647,m:139,cad:4},{d:'8/25',c:91026,m:146,cad:5},{d:'8/26',c:102644,m:170,cad:6},{d:'8/27',c:89968,m:118,cad:4},{d:'8/28',c:91133,m:146,cad:4},{d:'8/29',c:66050,m:126,cad:2},{d:'9/1',c:87343,m:167,cad:2},{d:'9/2',c:113395,m:180,cad:5},{d:'9/3',c:106018,m:191,cad:4},{d:'9/4',c:99541,m:174,cad:2},{d:'9/5',c:80530,m:148,cad:0},{d:'9/8',c:107573,m:154,cad:2},{d:'9/9',c:118289,m:188,cad:4},{d:'9/10',c:106444,m:185,cad:8},{d:'9/11',c:105452,m:172,cad:2},{d:'9/12',c:77505,m:163,cad:0},{d:'9/15',c:104210,m:169,cad:4},{d:'9/16',c:114827,m:211,cad:4},{d:'9/17',c:108601,m:198,cad:3},{d:'9/18',c:106091,m:205,cad:6},{d:'9/19',c:78347,m:171,cad:1},{d:'9/22',c:114978,m:194,cad:8},{d:'9/23',c:108112,m:205,cad:5},{d:'9/24',c:109617,m:190,cad:4},{d:'9/25',c:112962,m:187,cad:4},{d:'9/26',c:77797,m:187,cad:3},{d:'9/29',c:113298,m:184,cad:6},{d:'9/30',c:113690,m:174,cad:1},{d:'10/1',c:107588,m:185,cad:12},{d:'10/2',c:93477,m:160,cad:1},{d:'10/3',c:70318,m:86,cad:3},{d:'10/6',c:101226,m:162,cad:1},{d:'10/7',c:106112,m:208,cad:8},{d:'10/8',c:99082,m:153,cad:3},{d:'10/9',c:100002,m:182,cad:2},{d:'10/10',c:73244,m:136,cad:1},{d:'10/13',c:101331,m:164,cad:4},{d:'10/14',c:117461,m:233,cad:5},{d:'10/15',c:105720,m:192,cad:3},{d:'10/16',c:104711,m:199,cad:4},{d:'10/17',c:76359,m:174,cad:5},{d:'10/20',c:107035,m:175,cad:5},{d:'10/21',c:111494,m:197,cad:2},{d:'10/22',c:106161,m:202,cad:2},{d:'10/23',c:101068,m:193,cad:4},{d:'10/24',c:72903,m:136,cad:4},{d:'10/27',c:107410,m:200,cad:1},{d:'10/28',c:109472,m:190,cad:4},{d:'10/29',c:107425,m:168,cad:0},{d:'10/30',c:99104,m:168,cad:4},{d:'10/31',c:74379,m:145,cad:6},{d:'11/3',c:105153,m:160,cad:4},{d:'11/4',c:117271,m:204,cad:3},{d:'11/5',c:109421,m:191,cad:6},{d:'11/6',c:106615,m:219,cad:1},{d:'11/7',c:85515,m:167,cad:2},{d:'11/10',c:105834,m:213,cad:6},{d:'11/11',c:100612,m:194,cad:4},{d:'11/12',c:117067,m:174,cad:11},{d:'11/13',c:115564,m:209,cad:2},{d:'11/14',c:91136,m:203,cad:2},{d:'11/17',c:128715,m:177,cad:1},{d:'11/18',c:122123,m:309,cad:22},{d:'11/19',c:111567,m:207,cad:3},{d:'11/20',c:106900,m:204,cad:2},{d:'11/21',c:85043,m:193,cad:23},{d:'11/24',c:112109,m:200,cad:3},{d:'11/25',c:119808,m:218,cad:5},{d:'11/26',c:107365,m:198,cad:8},{d:'11/27',c:86974,m:200,cad:2},{d:'11/28',c:79080,m:146,cad:6},{d:'12/1',c:117382,m:233,cad:6},{d:'12/2',c:124398,m:224,cad:2},{d:'12/3',c:112354,m:225,cad:4},{d:'12/4',c:115931,m:223,cad:8},{d:'12/5',c:84737,m:168,cad:2},{d:'12/8',c:105790,m:173,cad:2},{d:'12/9',c:119073,m:297,cad:7},{d:'12/10',c:127044,m:168,cad:1},{d:'12/11',c:115462,m:205,cad:7},{d:'12/12',c:81432,m:121,cad:4},{d:'12/15',c:119789,m:160,cad:3},{d:'12/16',c:107578,m:174,cad:3},{d:'12/17',c:99848,m:182,cad:2},{d:'12/18',c:92771,m:145,cad:1},{d:'12/19',c:66465,m:93,cad:2},{d:'1/5',c:94327,m:151,cad:1},{d:'1/6',c:95579,m:174,cad:4},{d:'1/7',c:101095,m:166,cad:6},{d:'1/8',c:109786,m:149,cad:3},{d:'1/9',c:84537,m:144,cad:0},{d:'1/12',c:115847,m:163,cad:5},{d:'1/13',c:127015,m:223,cad:6},{d:'1/14',c:118797,m:193,cad:5},{d:'1/15',c:116543,m:224,cad:5},{d:'1/16',c:93204,m:173,cad:2},{d:'1/19',c:119414,m:231,cad:11},{d:'1/20',c:129618,m:234,cad:6},{d:'1/21',c:112043,m:222,cad:7},{d:'1/22',c:117021,m:206,cad:7},{d:'1/23',c:93038,m:191,cad:5},{d:'1/26',c:110785,m:216,cad:3},{d:'1/27',c:131112,m:221,cad:3},{d:'1/28',c:120727,m:231,cad:7},{d:'1/29',c:112164,m:187,cad:2},{d:'1/30',c:86137,m:199,cad:9},{d:'2/2',c:126037,m:223,cad:8},{d:'2/3',c:129602,m:219,cad:8},{d:'2/4',c:120381,m:189,cad:6},{d:'2/5',c:118499,m:174,cad:7},{d:'2/6',c:89817,m:177,cad:3},{d:'2/9',c:122141,m:175,cad:3},{d:'2/10',c:127697,m:198,cad:5},{d:'2/11',c:115257,m:179,cad:4},{d:'2/12',c:119478,m:195,cad:5},{d:'2/13',c:86196,m:169,cad:2},{d:'2/16',c:101771,m:180,cad:6},{d:'2/17',c:112147,m:168,cad:3},{d:'2/18',c:104214,m:178,cad:4},{d:'2/19',c:108164,m:189,cad:5},{d:'2/20',c:88000,m:146,cad:2},{d:'2/23',c:112095,m:213,cad:6},{d:'2/24',c:124443,m:248,cad:4},{d:'2/25',c:114706,m:201,cad:5},{d:'2/26',c:114649,m:222,cad:4},{d:'2/27',c:85611,m:131,cad:2},{d:'3/2',c:114760,m:200,cad:6},{d:'3/3',c:133785,m:230,cad:6},{d:'3/4',c:119410,m:180,cad:4},{d:'3/5',c:117904,m:239,cad:5},{d:'3/6',c:89732,m:175,cad:7},{d:'3/9',c:122030,m:176,cad:8},{d:'3/10',c:129583,m:224,cad:3},{d:'3/11',c:118641,m:195,cad:8},{d:'3/12',c:117846,m:237,cad:7},{d:'3/13',c:94326,m:186,cad:2},{d:'3/16',c:120951,m:212,cad:4},{d:'3/17',c:129346,m:251,cad:2},{d:'3/18',c:115930,m:158,cad:2},{d:'3/19',c:112071,m:198,cad:7},{d:'3/20',c:76733,m:152,cad:6},{d:'3/23',c:121615,m:176,cad:3},{d:'3/24',c:131076,m:233,cad:6},{d:'3/25',c:118384,m:203,cad:6},{d:'3/26',c:120528,m:210,cad:9},{d:'3/27',c:88863,m:165,cad:2},{d:'3/30',c:123717,m:180,cad:6},{d:'3/31',c:125760,m:244,cad:5},{d:'4/1',c:115402,m:170,cad:2},{d:'4/2',c:105614,m:148,cad:0},{d:'4/3',c:57700,m:87,cad:0},{d:'4/7',c:123670,m:213,cad:1},{d:'4/8',c:114332,m:188,cad:0},{d:'4/9',c:128601,m:161,cad:0},{d:'4/10',c:86484,m:147,cad:4},{d:'4/13',c:125165,m:160,cad:4},{d:'4/14',c:125999,m:234,cad:5},{d:'4/15',c:126368,m:217,cad:4},{d:'4/16',c:124241,m:208,cad:2},{d:'4/17',c:90561,m:176,cad:5},{d:'4/20',c:132570,m:193,cad:7},{d:'4/21',c:133599,m:206,cad:2},{d:'4/22',c:123930,m:194,cad:5},{d:'4/23',c:123711,m:188,cad:3},{d:'4/24',c:91472,m:176,cad:4},{d:'4/27',c:127348,m:182,cad:2},{d:'4/28',c:130775,m:223,cad:5},{d:'4/29',c:117391,m:207,cad:2},{d:'4/30',c:115677,m:169,cad:1},{d:'5/4',c:118036,m:221,cad:1},{d:'5/5',c:121613,m:200,cad:4},{d:'5/6',c:121900,m:155,cad:4},{d:'5/7',c:119230,m:187,cad:2},{d:'5/8',c:81532,m:144,cad:2},{d:'5/11',c:135784,m:235,cad:4},{d:'5/12',c:134985,m:262,cad:4},{d:'5/13',c:121414,m:224,cad:3},{d:'5/14',c:101661,m:178,cad:2},{d:'5/15',c:80820,m:143,cad:3},{d:'5/18',c:131783,m:219,cad:12},{d:'5/19',c:132400,m:233,cad:4},{d:'5/20',c:125275,m:183,cad:5},{d:'5/21',c:121330,m:199,cad:5},{d:'5/22',c:86263,m:177,cad:1},{d:'5/26',c:129235,m:219,cad:4},{d:'5/27',c:109887,m:176,cad:3},{d:'5/28',c:114600,m:215,cad:1},{d:'5/29',c:90266,m:116,cad:1}
+];
+
+// Filter for weekdays with meaningful case counts (>= 30000 cases = business day)
+const bizDays = dailyData.filter(r => r.c >= 30000);
+
+// Build monthly table
+const tbody = document.getElementById('monthlyTable');
+monthlyData.forEach(r => {
+  const doRate = (r.do / r.cases * 100).toFixed(3);
+  const cadRate = (r.cad / r.cases * 100).toFixed(4);
+  const doClass = parseFloat(doRate) >= 0.18 ? 'rate-high' : parseFloat(doRate) >= 0.16 ? 'rate-mid' : 'rate-low';
+  const cadClass = parseFloat(cadRate) >= 0.004 ? 'rate-high' : parseFloat(cadRate) >= 0.003 ? 'rate-mid' : 'rate-low';
+  tbody.innerHTML += `<tr>
+    <td>${r.month}</td>
+    <td>${r.cases.toLocaleString()}</td>
+    <td>${r.do.toLocaleString()}</td>
+    <td><span class="rate-pill ${doClass}">${doRate}%</span></td>
+    <td>${r.cad.toLocaleString()}</td>
+    <td><span class="rate-pill ${cadClass}">${cadRate}%</span></td>
+  </tr>`;
+});
+
+// Chart defaults
+Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+Chart.defaults.font.size = 11;
+// datalabels는 월별 차트에만 수동 등록
+
+
+const months = monthlyData.map(r => r.month);
+const doRates = monthlyData.map(r => (r.do / r.cases * 100).toFixed(3));
+const cadRates = monthlyData.map(r => (r.cad / r.cases * 100).toFixed(4));
+
+const datalabelsPlugin = window.ChartDataLabels;
+
+const doCounts = monthlyData.map(r => r.do);
+const cadCounts = monthlyData.map(r => r.cad);
+
+// Monthly DO Rate chart
+new Chart(document.getElementById('monthlyDoRate'), {
+  type: 'bar',
+  plugins: [datalabelsPlugin],
+  data: {
+    labels: months,
+    datasets: [{
+      label: 'Dynamic Occlusion 사용률 (%)',
+      data: doRates,
+      backgroundColor: months.map(m => m.startsWith('2026') ? '#4361ee' : '#93c5fd'),
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    layout: { padding: { top: 20 } },
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => ` ${ctx.raw}%  (${doCounts[ctx.dataIndex].toLocaleString()}건)` } },
+      datalabels: {
+        anchor: 'end', align: 'end',
+        formatter: (v, ctx) => doCounts[ctx.dataIndex].toLocaleString(),
+        font: { size: 9, weight: '600' },
+        color: '#555',
+      }
+    },
+    scales: {
+      y: { beginAtZero: true, ticks: { callback: v => v + '%' }, grid: { color: '#f0f0f0' } },
+      x: { ticks: { maxRotation: 45 }, grid: { display: false } }
+    }
+  }
+});
+
+// Monthly CAD Rate chart
+new Chart(document.getElementById('monthlyCadRate'), {
+  type: 'bar',
+  plugins: [datalabelsPlugin],
+  data: {
+    labels: months,
+    datasets: [{
+      label: 'ClinicCAD 활용률 (%)',
+      data: cadRates,
+      backgroundColor: months.map(m => m.startsWith('2026') ? '#f59e0b' : '#fcd34d'),
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    layout: { padding: { top: 20 } },
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => ` ${ctx.raw}%  (${cadCounts[ctx.dataIndex].toLocaleString()}건)` } },
+      datalabels: {
+        anchor: 'end', align: 'end',
+        formatter: (v, ctx) => cadCounts[ctx.dataIndex].toLocaleString(),
+        font: { size: 9, weight: '600' },
+        color: '#555',
+      }
+    },
+    scales: {
+      y: { beginAtZero: true, ticks: { callback: v => v + '%' }, grid: { color: '#f0f0f0' } },
+      x: { ticks: { maxRotation: 45 }, grid: { display: false } }
+    }
+  }
+});
+
+// Daily chart
+let dailyChart = null;
+
+function buildDailyChart(mode) {
+  if (dailyChart) dailyChart.destroy();
+  const labels = bizDays.map(r => r.d);
+  const counts = bizDays.map(r => mode === 'do' ? r.m : r.cad);
+  const rates  = bizDays.map(r => {
+    if (mode === 'do') return r.c > 0 ? parseFloat((r.m / r.c * 100).toFixed(3)) : 0;
+    else               return r.c > 0 ? parseFloat((r.cad / r.c * 100).toFixed(4)) : 0;
+  });
+  const color     = mode === 'do' ? '#4361ee' : '#f59e0b';
+  const barColor  = mode === 'do' ? '#93c5fd' : '#fcd34d';
+  const countLabel = mode === 'do' ? 'Dynamic Occlusion 케이스 (건)' : 'ClinicCAD 케이스 (건)';
+  const rateLabel  = mode === 'do' ? '사용률 (%)' : '활용률 (%)';
+
+  dailyChart = new Chart(document.getElementById('dailyChart'), {
+    data: {
+      labels,
+      datasets: [
+        {
+          type: 'bar',
+          label: countLabel,
+          data: counts,
+          backgroundColor: barColor,
+          borderRadius: 2,
+          yAxisID: 'yCount',
+          order: 2,
+        },
+        {
+          type: 'line',
+          label: rateLabel,
+          data: rates,
+          borderColor: color,
+          backgroundColor: 'transparent',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          tension: 0.3,
+          yAxisID: 'yRate',
+          order: 1,
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: true, position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: ctx => ctx.dataset.yAxisID === 'yRate'
+              ? ` ${ctx.dataset.label}: ${ctx.raw}%`
+              : ` ${ctx.dataset.label}: ${ctx.raw.toLocaleString()}건`
+          }
+        }
+      },
+      scales: {
+        yCount: {
+          type: 'linear', position: 'left', beginAtZero: true,
+          ticks: { callback: v => v.toLocaleString() + '건', font: { size: 10 } },
+          grid: { color: '#f0f0f0' },
+        },
+        yRate: {
+          type: 'linear', position: 'right', beginAtZero: true,
+          ticks: { callback: v => v + '%', font: { size: 10 } },
+          grid: { drawOnChartArea: false },
+        },
+        x: { ticks: { maxTicksLimit: 24, maxRotation: 45, font: { size: 10 } }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+function switchDailyChart(mode, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  buildDailyChart(mode);
+}
+
+buildDailyChart('do');
+</script>
+</body>
+</html>
