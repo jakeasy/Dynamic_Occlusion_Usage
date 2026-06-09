@@ -112,6 +112,33 @@
   .rate-high { background: #f0fdf4; color: #16a34a; }
 
   .note { font-size: 11px; color: #bbb; padding: 12px 24px 16px; }
+
+  /* Insights */
+  .insights-section { padding: 0 40px 8px; }
+  .insights-title { font-size: 13px; font-weight: 700; color: #888; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 12px; }
+  .insights-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .insight-card {
+    background: white; border-radius: 10px; padding: 16px 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+    border-top: 3px solid #e2e8f0;
+    position: relative;
+  }
+  .insight-card.blue  { border-top-color: #4361ee; }
+  .insight-card.orange{ border-top-color: #f59e0b; }
+  .insight-card.green { border-top-color: #10b981; }
+  .insight-card.red   { border-top-color: #ef4444; }
+  .insight-card.purple{ border-top-color: #8b5cf6; }
+  .insight-card.teal  { border-top-color: #14b8a6; }
+  .insight-badge { font-size: 10px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; margin-bottom: 6px; }
+  .insight-card.blue   .insight-badge { color: #4361ee; }
+  .insight-card.orange .insight-badge { color: #d97706; }
+  .insight-card.green  .insight-badge { color: #059669; }
+  .insight-card.red    .insight-badge { color: #dc2626; }
+  .insight-card.purple .insight-badge { color: #7c3aed; }
+  .insight-card.teal   .insight-badge { color: #0d9488; }
+  .insight-heading { font-size: 13px; font-weight: 600; color: #1a1a2e; margin-bottom: 5px; line-height: 1.4; }
+  .insight-body { font-size: 12px; color: #666; line-height: 1.6; }
+  .insight-body strong { color: #1a1a2e; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -163,6 +190,67 @@
         <div class="kpi-sub">활용 케이스 / 전체 케이스</div>
       </div>
     </div>
+  </div>
+</div>
+
+<div class="insights-section">
+  <div class="insights-title">Key Insights</div>
+  <div class="insights-grid">
+
+    <div class="insight-card blue">
+      <div class="insight-badge">Dynamic Occlusion · 사용 수준</div>
+      <div class="insight-heading">전체 케이스의 0.17% — 절대 건수는 꾸준</div>
+      <div class="insight-body">
+        1년간 총 <strong>49,001건</strong> 사용, 월평균 <strong>4,083건</strong>. 사용률은 낮지만
+        매월 안정적으로 발생하고 있어 핵심 워크플로우로 자리잡은 상태.
+      </div>
+    </div>
+
+    <div class="insight-card green">
+      <div class="insight-badge">Dynamic Occlusion · 성장 추세</div>
+      <div class="insight-heading">2026.03 피크 기준 약 +22% 성장</div>
+      <div class="insight-body">
+        2025.06 <strong>3,883건</strong> → 2026.03 <strong>4,753건</strong>으로 우상향.
+        단순 신규 기능 수준을 넘어 사용자 저변이 확대되는 흐름.
+      </div>
+    </div>
+
+    <div class="insight-card orange">
+      <div class="insight-badge">ClinicCAD · 활용 격차</div>
+      <div class="insight-heading">DO 대비 1/46 수준 — 활성화 필요</div>
+      <div class="insight-body">
+        월평균 <strong>87건</strong>으로 DO(4,083건)와 큰 격차. 기능은 존재하지만
+        실질적 채택이 매우 낮아 UX 개선 또는 인지도 제고 전략 검토 필요.
+      </div>
+    </div>
+
+    <div class="insight-card red">
+      <div class="insight-badge">ClinicCAD · 트렌드</div>
+      <div class="insight-heading">2025.11 피크 이후 감소 추세</div>
+      <div class="insight-body">
+        11월 <strong>122건</strong>으로 최고점 이후 12월 63건, 이후에도 회복 불안정.
+        월별 편차(63~122건)도 커 사용 패턴이 비일관적.
+      </div>
+    </div>
+
+    <div class="insight-card teal">
+      <div class="insight-badge">그룹 활성도</div>
+      <div class="insight-heading">일평균 22,515개 그룹, 그룹당 ~3.5 케이스</div>
+      <div class="insight-body">
+        활성 그룹 수가 전체 기간 안정적으로 증가 (2025.06 20,727 → 2026.03 25,728).
+        그룹당 케이스 생성량은 월별 편차 없이 <strong>약 3.5건/일</strong>로 일정.
+      </div>
+    </div>
+
+    <div class="insight-card purple">
+      <div class="insight-badge">계절성 패턴</div>
+      <div class="insight-heading">8월·12월 비수기 패턴 반복</div>
+      <div class="insight-body">
+        2025년 <strong>8월</strong>(하계 휴가)과 <strong>12월</strong>(연말연시) 케이스·그룹 수
+        모두 전후 대비 소폭 감소. 분기 계획 수립 시 계절 보정 필요.
+      </div>
+    </div>
+
   </div>
 </div>
 
